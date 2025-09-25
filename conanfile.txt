@@ -1,0 +1,15 @@
+[requires]
+log.c/cci.20200620
+libpng/1.6.43
+argtable3/3.2.2
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+libpng/*:system=True
+argtable3/*:system=True
+log.c/*:shared=True
+libpng/*:shared=True
+argtable3/*:shared=True

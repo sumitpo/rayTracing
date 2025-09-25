@@ -1,0 +1,69 @@
+cmake_minimum_required(VERSION 3.15)
+project(RayTracer C)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_BUILD_RPATH "$ORIGIN")
+
+# Import Conan
+include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+if(EXISTS ${CMAKE_BINARY_DIR}/conan_deps.cmake)
+    include(${CMAKE_BINARY_DIR}/conan_deps.cmake)
+endif()
+
+file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/interface/src/*.c" "${CMAKE_SOURCE_DIR}/internal/src/*.c")
+
+set(TARGET raytracer)
+
+# Executable
+add_executable(${TARGET} ${SOURCES})
+
+option(USE_ZLOG "Use zlog as logging backend" OFF)
+option(USE_LOGC "Use log.c as logging backend" ON)
+
+# Find packages
+if(USE_ZLOG)
+  find_package(zlog REQUIRED)
+endif()
+if(USE_LOGC)
+  find_package(log.c REQUIRED)
+endif()
+find_package(PNG REQUIRED)
+find_package(Argtable3 REQUIRED)
+
+if(USE_ZLOG AND USE_LOGC)
+    message(FATAL_ERROR "Cannot enable both USE_ZLOG and USE_LOGC. Choose one.")
+endif()
+
+if(NOT USE_ZLOG AND NOT USE_LOGC)
+    message(STATUS "Using built-in stdio logging backend")
+endif()
+
+# Link libraries
+target_link_libraries(${TARGET}
+    PRIVATE
+        PNG::PNG
+        argtable3::argtable3
+)
+
+if(USE_ZLOG)
+  target_link_libraries(${TARGET}raytracer PRIVATE zlog::zlog)
+endif()
+
+if(USE_LOGC)
+  target_link_libraries(${TARGET} PRIVATE log.c::log.c)
+endif()
+
+# Include directories
+target_include_directories(raytracer PRIVATE internal/include interface/include)
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "Default install prefix" FORCE)
+endif()
+message(${CMAKE_INSTALL_PREFIX})
+
+
+install(TARGETS ${TARGET}
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION shared
+  ARCHIVE DESTINATION lib
+  )
