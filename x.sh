@@ -41,7 +41,7 @@ build() {
 # clean build
 clean() {
     echo "Cleaning build and install directories..."
-    rm -rf "$BUILD_DIR" "$INSTALL_DIR"
+    rm -rf "$BUILD_DIR" "$INSTALL_DIR" CMakeUserPresets.json
     echo "Cleaned."
 }
 

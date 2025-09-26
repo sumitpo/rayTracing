@@ -10,6 +10,7 @@ CMakeToolchain
 [options]
 libpng/*:system=True
 argtable3/*:system=True
+
 log.c/*:shared=True
 libpng/*:shared=True
 argtable3/*:shared=True
