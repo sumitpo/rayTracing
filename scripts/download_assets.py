@@ -2,9 +2,8 @@
 import os
 import urllib.request
 
-ASSETS = {
-    "reference.png": "https://example.com/reference.png"  # replace with real URL
-}
+ASSETS = {"reference.png": "https://example.com/reference.png"}  # replace with real URL
+
 
 def main():
     os.makedirs("tests/assets", exist_ok=True)
@@ -15,6 +14,7 @@ def main():
             urllib.request.urlretrieve(url, path)
         else:
             print(f"{name} already exists.")
+
 
 if __name__ == "__main__":
     main()
