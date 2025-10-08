@@ -1,12 +1,14 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.15)
 PROJECT(raytracer-c C)
 
-# 设置 C 标准（根据你的代码调整）
+SET(TARGET raytracer-c)
+
+# set C std
 SET(CMAKE_C_STANDARD 99)
 SET(CMAKE_C_STANDARD_REQUIRED ON)
 SET(CMAKE_C_EXTENSIONS OFF)
 
-# 选项：是否构建示例/主程序（方便作为库被使用时跳过 main）
+# options: whether to build example; skip building example when build as library
 OPTION(BUILD_EXAMPLES "Build the raytracer examples" ON)
 
 # 查找 Conan 提供的依赖（由 CMakeDeps 生成） 注意：conan install 会生成 conan_deps.cmake
@@ -19,11 +21,12 @@ ENDIF()
 # ================
 # 库目标
 # ================
-ADD_LIBRARY(raytracer-c src/raytracer.c src/fileio.c)
+FILE(GLOB_RECURSE SOURCES "src/*.c")
+ADD_LIBRARY(${TARGET} ${SOURCES})
 
 # 设置 include 目录（PUBLIC 表示使用者也需要）
 TARGET_INCLUDE_DIRECTORIES(
-  raytracer-c
+  ${TARGET}
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          $<INSTALL_INTERFACE:include>
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -34,8 +37,8 @@ FIND_PACKAGE(log4c CONFIG REQUIRED)
 FIND_PACKAGE(PNG CONFIG REQUIRED)
 FIND_PACKAGE(argtable3 CONFIG REQUIRED)
 FIND_PACKAGE(wavefront-parser CONFIG REQUIRED)
-TARGET_LINK_LIBRARIES(raytracer-c PUBLIC log4c::log4c PNG::PNG
-                                         wavefront-parser::wavefront-parser)
+TARGET_LINK_LIBRARIES(${TARGET} PUBLIC log4c::log4c PNG::PNG
+                                       wavefront-parser::wavefront-parser)
 # argtable3::argtable3
 
 # ================
@@ -50,12 +53,12 @@ ENDIF()
 # ================
 INCLUDE(GNUInstallDirs)
 
-# 安装头文件
-INSTALL(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+INSTALL(FILES include/raytracer.h include/config.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # 安装库文件
 INSTALL(
-  TARGETS raytracer-c
+  TARGETS ${TARGET}
   EXPORT raytracer-c-targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

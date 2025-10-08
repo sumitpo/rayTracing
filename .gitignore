@@ -45,6 +45,8 @@ conanrunenv.txt
 conan/
 conan_cache/
 
+*.png
+
 # Prerequisites
 *.d
 

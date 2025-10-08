@@ -1,7 +1,7 @@
 # examples/CMakeLists.txt
-SET(TARGET_DEMO raytracer-demo)
+SET(TARGET_DEMO raytracer)
 FIND_PACKAGE(argtable3 CONFIG REQUIRED)
-ADD_EXECUTABLE(${TARGET_DEMO} demo.c cli.c)
+ADD_EXECUTABLE(${TARGET_DEMO} main.c cli.c)
 TARGET_LINK_LIBRARIES(${TARGET_DEMO} PRIVATE raytracer-c log4c::log4c
                                              argtable3::argtable3)
 

@@ -2,11 +2,12 @@
 #define RAYTRACER_H
 
 #include "config.h"
+#include "wavefront.h"
+
 typedef struct {
-  int         width, height;
-  const char* output;
-  int         verbose;
-} Config;
+  wf_vec3 origin;
+  wf_vec3 direction;
+} ray_t;
 
 int render_scene(const rtCfg* cfg);
 

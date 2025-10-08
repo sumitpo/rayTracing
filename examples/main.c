@@ -4,7 +4,8 @@
 #include "raytracer.h"
 
 int main(int argc, char** argv) {
-  log_init(LOG_LEVEL_DEBUG);
+  // log_init(LOG_LEVEL_DEBUG);
+  log_init(LOG_LEVEL_INFO);
 
   rtCfg cfg;
   if (parse_args(argc, argv, &cfg) != 0)
