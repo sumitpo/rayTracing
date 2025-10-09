@@ -53,7 +53,7 @@ conan_cache/
 # Object files
 *.o
 *.ko
-*.obj
+# *.obj
 *.elf
 
 # Linker output
