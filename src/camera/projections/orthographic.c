@@ -30,10 +30,11 @@ static void* ortho_init(wf_vec3 pos, wf_vec3 target, wf_vec3 up,
   return priv;
 }
 
-// 正交相机：射线方向恒为 forward，偏移在 origin 处理（此处仅返回方向）
+// Orthographic camera: ray direction is always forward,
+// offset is handled at the origin (this function returns direction only)
 static wf_vec3 ortho_get_ray_direction(const void* priv, float u, float v) {
   const ortho_priv_t* p = (const ortho_priv_t*)priv;
-  return p->forward; // 方向不变
+  return p->forward; // Direction remains constant
 }
 
 static void ortho_exit(void* priv) {

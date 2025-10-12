@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 
-// 向量运算（全部使用值传递 + 指定初始化器）
+// vector calculation
 
 static inline wf_vec3 v3_add(wf_vec3 a, wf_vec3 b) {
   return (wf_vec3){ .x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z };
@@ -61,7 +61,6 @@ static inline int v3_is_zero(wf_vec3 v, float epsilon) {
          && (fabsf(v.z) < epsilon);
 }
 
-// 射线工具函数：返回射线上 t 处的点（值语义，可链式调用）
 static inline wf_vec3 ray_at(ray_t r, float t) {
   return v3_add(r.origin, v3_scale(t, r.direction));
 }

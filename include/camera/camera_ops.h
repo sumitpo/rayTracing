@@ -4,20 +4,20 @@
 
 #include "camera.h"
 
-// 投影策略接口（仿 tcp_congestion_ops）
+// projection strategy interface (like tcp_congestion_ops)
 struct camera_projection_ops {
   projection_type_t type;
   const char*       name;
 
-  // 初始化私有数据
+  // init private data
   void* (*init)(wf_vec3 pos, wf_vec3 target, wf_vec3 up, const void* params);
-  // 生成射线方向
+  // generate ray direction
   wf_vec3 (*get_ray_direction)(const void* priv, float u, float v);
-  // 清理
+  // clean up
   void (*exit)(void* priv);
 };
 
-// 注册宏（仿 Linux 内核）
+// register macro（like Linux kernel code style）
 #define CAMERA_PROJECTION_OPS_REGISTER(ops)                                    \
   static void __attribute__((constructor)) __register_##ops(void) {            \
     camera_register_projection(&ops);                                          \
@@ -25,7 +25,7 @@ struct camera_projection_ops {
 
 void camera_register_projection(const struct camera_projection_ops* ops);
 
-// 投影策略注册表（仿拥塞控制）
+// projection strategy register table
 static const struct camera_projection_ops* s_projections[6] = { 0 };
 
 void register_ortho_dof_projection(void);

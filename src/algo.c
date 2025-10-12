@@ -9,8 +9,6 @@ wf_vec3 v3_cross(wf_vec3 a, wf_vec3 b) {
                     .z = a.x * b.y - a.y * b.x };
 }
 
-// 注意：v3_length_sq 和 v3_length 已在 algo.h 中 inline，此处无需定义
-
 wf_vec3 v3_normalize(wf_vec3 v) {
   float len = v3_length(v);
   if (len == 0.0f) {

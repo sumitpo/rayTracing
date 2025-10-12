@@ -11,7 +11,7 @@ void camera_register_projection(const struct camera_projection_ops* ops) {
 
 struct camera {
   wf_vec3                             position;
-  void*                               priv; // 私有数据
+  void*                               priv;
   const struct camera_projection_ops* ops;
 };
 

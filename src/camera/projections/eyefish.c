@@ -4,7 +4,7 @@
 
 typedef struct {
   wf_vec3 forward, up, right;
-  float   fov_radius; // 最大视角半径（弧度），通常 π/2 或 π
+  float   fov_radius; // Maximum viewing angle radius (in radians), typically π/2 or π
 } fisheye_priv_t;
 
 typedef struct {
@@ -30,19 +30,19 @@ static void* fisheye_init(wf_vec3 pos, wf_vec3 target, wf_vec3 up,
 static wf_vec3 fisheye_get_ray_direction(const void* priv, float u, float v) {
   const fisheye_priv_t* p = (const fisheye_priv_t*)priv;
 
-  // 将 [0,1] 映射到 [-1,1]
+  // Map [0,1] to [-1,1]
   float x = 2.0f * u - 1.0f;
-  float y = 1.0f - 2.0f * v; // y=0 在顶部
+  float y = 1.0f - 2.0f * v; // y=0 at the top
 
   float r = sqrtf(x * x + y * y);
   if (r > 1.0f)
-    r = 1.0f; // 裁剪到单位圆
+    r = 1.0f; // Clamp to unit circle
 
-  // 等距模型：θ = r * fov_radius
+  // Equidistant model: θ = r * fov_radius
   float theta = r * p->fov_radius;
-  float phi   = atan2f(y, x); // 方位角
+  float phi   = atan2f(y, x); // Azimuthal angle
 
-  // 转换为 3D 方向（在相机局部坐标系）
+  // Convert to 3D direction (in camera local coordinate system)
   float   sin_theta = sinf(theta);
   wf_vec3 local_dir = { .x = sin_theta * cosf(phi),
                         .y = sin_theta * sinf(phi),
@@ -53,7 +53,7 @@ static wf_vec3 fisheye_get_ray_direction(const void* priv, float u, float v) {
   wf_vec3 z_scaled = v3_scale(local_dir.z, p->forward);
   wf_vec3 x_y      = v3_add(x_scaled, y_scaled);
 
-  // 从局部坐标系转到世界坐标系
+  // Transform from local coordinate system to world coordinate system
   wf_vec3 world_dir = v3_add(v3_scale(local_dir.x, p->right),
                              v3_add(v3_scale(local_dir.y, p->up),
                                     v3_scale(local_dir.z, p->forward)));

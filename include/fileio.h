@@ -4,12 +4,12 @@
 #include <stdint.h>
 
 /**
- * 保存 RGBA 图像为 PNG 文件
- * @param filename 输出文件路径
- * @param width 图像宽度
- * @param height 图像高度
- * @param image RGBA 像素数据（size = width * height * 4）
- * @return 0 成功，非 0 失败
+ * save rgba image as PNG file
+ * @param filename output file path
+ * @param width image width
+ * @param height image heigth
+ * @param image RGBA pixel data（size = width * height * 4）
+ * @return 0 success，none 0 failure
  */
 int save_png(const char* filename, uint32_t width, uint32_t height,
              const uint8_t* image);

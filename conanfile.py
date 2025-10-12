@@ -6,16 +6,16 @@ import os
 
 class RaytracerCConan(ConanFile):
     name = "raytracer-c"
-    version = "1.0.0"  # ← 必须指定，用于包标识
+    version = "1.0.0"  # ← Must be specified, used for package identification
 
-    # 基本元数据
+    # Basic metadata
     license = "MIT"
-    author = "Your Name"
-    url = "https://github.com/your/raytracer-c"
+    author = "sumitpo"
+    url = "https://github.com/sumitpo/raytracer-c"
     description = "A simple raytracer written in C"
     topics = ("raytracer", "graphics", "c")
 
-    # 构建设置
+    # Build settings
     settings = "os", "compiler", "build_type", "arch"
     options = {
         "shared": [True, False],
@@ -26,10 +26,10 @@ class RaytracerCConan(ConanFile):
         "fPIC": True,
     }
 
-    # 源码导出（关键！）
+    # Source export (critical!)
     exports_sources = "CMakeLists.txt", "include/*", "src/*", "LICENSE"
 
-    # 生成器
+    # Generators
     generators = "CMakeDeps", "CMakeToolchain"
 
     def config_options(self):
@@ -41,11 +41,11 @@ class RaytracerCConan(ConanFile):
         self.requires("libpng/1.6.43")
         self.requires("argtable3/3.2.2")
         self.requires("wavefront-parser/1.0.0@local/stable")
-        # 注意：cmocka 是测试依赖，不应作为运行时依赖！
-        # 如果你的库本身不需要 cmocka，应移出 requirements（见下方说明）
+        # Note: cmocka is a testing dependency and should not be a runtime dependency!
+        # If your library itself doesn't require cmocka, it should be removed from requirements (see note below)
 
     def configure(self):
-        # 设置依赖选项（与之前一致）
+        # Set dependency options (consistent with previous setup)
         self.options["libpng"].system = True
         self.options["argtable3"].system = True
 
@@ -54,13 +54,13 @@ class RaytracerCConan(ConanFile):
 
         self.options["wavefront-parser"].build_examples = False
         self.options["wavefront-parser"].build_tests = False
-        # cmocka 不应出现在这里（除非你的库真的链接了它）
+        # cmocka should not appear here (unless your library actually links against it)
 
     def layout(self):
         cmake_layout(self)
 
     def generate(self):
-        # CMakeDeps 和 CMakeToolchain 已由 generators 自动处理
+        # CMakeDeps and CMakeToolchain are automatically handled by generators
         pass
 
     def build(self):
@@ -68,17 +68,17 @@ class RaytracerCConan(ConanFile):
         cmake.build()
 
     def package(self):
-        # 安装头文件和库文件
+        # Install header files and library files
         cmake = CMake(self)
-        cmake.install()  # 推荐：在 CMakeLists.txt 中实现 install()
+        cmake.install()  # Recommended: implement install() in CMakeLists.txt
 
-        # 复制许可证
+        # Copy license file
         copy(self, "LICENSE", src=self.source_folder,
              dst=os.path.join(self.package_folder, "licenses"))
 
     def package_info(self):
-        # 告诉使用者如何链接你的库
-        self.cpp_info.libs = ["raytracer-c"]  # 对应 CMake 中的 target 名称
+        # Tell consumers how to link your library
+        self.cpp_info.libs = ["raytracer-c"]  # Corresponds to the target name in CMake
 
-        # 如果你的库依赖系统库（如 libpng 使用系统版），可能需要：
+        # If your library depends on system libraries (e.g., libpng using system version), you might need:
         # self.cpp_info.system_libs = ["png", "z"]

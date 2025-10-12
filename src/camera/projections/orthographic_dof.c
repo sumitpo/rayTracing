@@ -106,5 +106,5 @@ static struct camera_projection_ops ortho_dof_ops = {
 CAMERA_PROJECTION_OPS_REGISTER(ortho_dof_ops)
 
 void register_ortho_dof_projection(void) {
-    camera_register_projection(&ortho_dof_ops);
+  camera_register_projection(&ortho_dof_ops);
 }

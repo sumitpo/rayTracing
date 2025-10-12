@@ -9,37 +9,77 @@
 #include "log4c.h"
 #include "wavefront.h"
 
+static void get_face_color(const wf_scene_t* scene, size_t face_idx, uint8_t* r,
+                           uint8_t* g, uint8_t* b) {
+  if (face_idx >= 2 && face_idx <= 3) {
+    *r = 100;
+    *g = 100;
+    *b = 100;
+  } else if (face_idx >= 4 && face_idx <= 5) {
+    *r = 0;
+    *g = 255;
+    *b = 100;
+  } else if (face_idx >= 6 && face_idx <= 7) {
+    *r = 100;
+    *g = 255;
+    *b = 100;
+  } else if (face_idx >= 8 && face_idx <= 9) {
+    *r = 255;
+    *g = 100;
+    *b = 100;
+  } else if (face_idx >= 10 && face_idx <= 21) {
+    *r = 255;
+    *g = 100;
+    *b = 0;
+  } else if (face_idx >= 22 && face_idx <= 33) {
+    *r = 255;
+    *g = 255;
+    *b = 200;
+  } else {
+    *r = 200;
+    *g = 200;
+    *b = 200;
+  }
+}
+
 // Test ray against all triangles
 static bool hit_scene(const ray_t* ray, const wf_face* triangles,
-                      size_t tri_count, const wf_scene_t* scene, float* t_min) {
-  bool  hit       = false;
-  float closest_t = INFINITY;
+                      size_t tri_count, const wf_scene_t* scene, float* t_min,
+                      size_t* hit_face_idx) {
+  bool   hit         = false;
+  float  closest_t   = INFINITY;
+  size_t closest_idx = 0;
 
   for (size_t i = 0; i < tri_count; ++i) {
     const wf_face* face = &triangles[i];
-    // Get vertex positions from scene
-    const wf_vec3* v0 = &scene->vertices[face->vertices[0].v_idx];
-    const wf_vec3* v1 = &scene->vertices[face->vertices[1].v_idx];
-    const wf_vec3* v2 = &scene->vertices[face->vertices[2].v_idx];
+    const wf_vec3* v0   = &scene->vertices[face->vertices[0].v_idx];
+    const wf_vec3* v1   = &scene->vertices[face->vertices[1].v_idx];
+    const wf_vec3* v2   = &scene->vertices[face->vertices[2].v_idx];
 
     float t;
     if (ray_intersects_triangle(ray, v0, v1, v2, &t)) {
       if (t < closest_t) {
-        closest_t = t;
-        hit       = true;
+        closest_t   = t;
+        closest_idx = i;
+        hit         = true;
       }
     }
   }
 
-  if (hit && t_min)
-    *t_min = closest_t;
+  if (hit) {
+    if (t_min)
+      *t_min = closest_t;
+    if (hit_face_idx)
+      *hit_face_idx = closest_idx;
+  }
   return hit;
 }
 
 static ray_t get_camera_ray(const camera_t* cam, int x, int y, int width,
                             int height) {
-  float   u         = (float)x / (float)(width - 1);
-  float   v         = (float)y / (float)(height - 1);
+  float u = (width > 1) ? (float)x / (float)(width - 1) : 0.5f;
+  float v = (height > 1) ? 1.0f - (float)y / (float)(height - 1) : 0.5f;
+
   wf_vec3 origin    = camera_get_position(cam);
   wf_vec3 direction = camera_get_ray_direction(cam, u, v);
   return (ray_t){ .origin = origin, .direction = direction };
@@ -62,6 +102,9 @@ int render_scene(const rtCfg* cfg) {
     return 1;
   }
 
+  wf_print_options_t opt;
+  wf_print_scene(&scene, &opt);
+
   // Convert to flat triangle array for efficient ray tracing
   wf_face* triangles      = NULL;
   size_t   triangle_count = 0;
@@ -73,10 +116,10 @@ int render_scene(const rtCfg* cfg) {
   }
 
   // Create camera
-  wf_vec3 position = { 0.0f, 0.0f, 3.0f };
-  wf_vec3 target   = { 0.0f, 0.0f, 0.0f };
+  wf_vec3 position = { 0.0f, 1.0f, 2.8f };
+  wf_vec3 target   = { 0.0f, 1.0f, -1.0f };
   wf_vec3 up       = { 0.0f, 1.0f, 0.0f };
-  float   fov_y    = M_PI / 3.0f;
+  float   fov_y    = 60.0f * M_PI / 180.0f;
   float   aspect   = (float)cfg->width / (float)cfg->height;
 
   camera_t* cam =
@@ -104,11 +147,16 @@ int render_scene(const rtCfg* cfg) {
   for (int y = 0; y < cfg->height; ++y) {
     for (int x = 0; x < cfg->width; ++x) {
       ray_t ray = get_camera_ray(cam, x, y, cfg->width, cfg->height);
-      bool  hit = hit_scene(&ray, triangles, triangle_count, &scene, NULL);
 
-      uint8_t r = hit ? 255 : 0;
-      uint8_t g = hit ? 100 : 0;
-      uint8_t b = hit ? 50 : 0;
+      size_t  hit_face_idx;
+      bool    hit = hit_scene(&ray, triangles, triangle_count, &scene, NULL,
+                              &hit_face_idx);
+      uint8_t r, g, b;
+      if (hit) {
+        get_face_color(&scene, hit_face_idx, &r, &g, &b);
+      } else {
+        r = g = b = 0; // 背景黑色
+      }
 
       size_t idx     = (y * cfg->width + x) * 4;
       image[idx]     = r;
