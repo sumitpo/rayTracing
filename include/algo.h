@@ -66,6 +66,6 @@ static inline wf_vec3 ray_at(ray_t r, float t) {
 }
 
 bool ray_intersects_triangle(const ray_t* ray, const wf_vec3* v0,
-                             const wf_vec3* v1, const wf_vec3* v2,
-                             float* t_out);
+                             const wf_vec3* v1, const wf_vec3* v2, float* t_out,
+                             float* u_out, float* v_out);
 #endif // ALGO_H

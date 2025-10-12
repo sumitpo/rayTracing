@@ -258,7 +258,8 @@ static bool median_intersect(const bvh_tree_t* tree, const ray_t* ray,
         const wf_vec3* v2   = &tree->scene->vertices[face->vertices[2].v_idx];
 
         float t;
-        if (ray_intersects_triangle(ray, v0, v1, v2, &t) && t < closest_t) {
+        if (ray_intersects_triangle(ray, v0, v1, v2, &t, NULL, NULL)
+            && t < closest_t) {
           closest_t = t;
           hit       = true;
         }

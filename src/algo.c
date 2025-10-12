@@ -11,7 +11,7 @@ wf_vec3 v3_cross(wf_vec3 a, wf_vec3 b) {
 
 wf_vec3 v3_normalize(wf_vec3 v) {
   float len = v3_length(v);
-  if (len == 0.0f) {
+  if (len <= 1e-6f) {
     return v3_zero();
   }
   return v3_scale(1.0f / len, v);
@@ -19,13 +19,14 @@ wf_vec3 v3_normalize(wf_vec3 v) {
 
 // Ray-triangle intersection (Möller–Trumbore)
 bool ray_intersects_triangle(const ray_t* ray, const wf_vec3* v0,
-                             const wf_vec3* v1, const wf_vec3* v2,
-                             float* t_out) {
+                             const wf_vec3* v1, const wf_vec3* v2, float* t_out,
+                             float* u_out, float* v_out) {
   const float EPSILON = 1e-8f;
   wf_vec3     edge1   = v3_sub(*v1, *v0);
   wf_vec3     edge2   = v3_sub(*v2, *v0);
-  wf_vec3     h       = v3_cross(ray->direction, edge2);
-  float       a       = v3_dot(edge1, h);
+
+  wf_vec3 h = v3_cross(ray->direction, edge2);
+  float   a = v3_dot(edge1, h);
   if (a > -EPSILON && a < EPSILON)
     return false;
 
@@ -37,12 +38,17 @@ bool ray_intersects_triangle(const ray_t* ray, const wf_vec3* v0,
 
   wf_vec3 q = v3_cross(s, edge1);
   float   v = f * v3_dot(ray->direction, q);
-  if (v < 0.0f || u + v > 1.0f)
+  if (v < 0.0f || (u + v) > 1.0f)
     return false;
 
   float t = f * v3_dot(edge2, q);
   if (t > EPSILON) {
-    *t_out = t;
+    if (t_out)
+      *t_out = t;
+    if (u_out)
+      *u_out = u;
+    if (v_out)
+      *v_out = v;
     return true;
   }
   return false;

@@ -4,7 +4,8 @@
 
 typedef struct {
   wf_vec3 forward, up, right;
-  float   fov_radius; // Maximum viewing angle radius (in radians), typically π/2 or π
+  float fov_radius; // Maximum viewing angle radius (in radians), typically π/2
+                    // or π
 } fisheye_priv_t;
 
 typedef struct {
