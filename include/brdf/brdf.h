@@ -3,12 +3,20 @@
 #define BRDF_H
 
 #include <stdbool.h>
+#include "log4c.h"
 #include "wavefront.h"
 
 typedef struct brdf_s brdf_t;
 
+typedef enum {
+  BRDF_LAMBERT = 0,
+  BRDF_COOK_TORRANCE,
+  BRDF_END,
+} brdf_type_t;
+
 // BRDF ops
 typedef struct brdf_ops {
+  brdf_type_t type;
   const char* name; // "lambert", "cook_torrance", etc.
 
   // eval function：given wi, wo, n → return f_r(wi, wo)
@@ -32,10 +40,14 @@ struct brdf_s {
 };
 
 // register/find
-int               brdf_register_model(const brdf_ops_t* ops);
+
+void              brdf_register_model(const brdf_ops_t* ops);
 const brdf_ops_t* brdf_find_model(const char* name);
 
 brdf_t* brdf_create(const char* model_name, const void* params);
 void    brdf_destroy(brdf_t* brdf);
+
+void register_lambert_brdf(void);
+void register_cook_torrance_brdf(void);
 
 #endif

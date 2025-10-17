@@ -3,12 +3,15 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "algo.h"
 #include "camera/camera.h"
 #include "fileio.h"
 #include "log4c.h"
 #include "rt_material.h"
 #include "rt_types.h"
+#include "sample/accumulator.h"
+#include "sample/sampler.h"
 #include "wavefront.h"
 
 typedef struct {
@@ -19,6 +22,12 @@ typedef struct {
 
 static bool hit_scene(const ray_t* ray, const wf_face* tris, size_t tri_count,
                       const wf_scene_t* scene, hit_record_t* rec);
+void        search_light(wf_scene_t* scene, wf_vec3* light_pos);
+static inline wf_vec3 v3_reflect(wf_vec3 I, wf_vec3 N) {
+  float dot = v3_dot(I, N);
+  return (wf_vec3){ I.x - 2.0f * dot * N.x, I.y - 2.0f * dot * N.y,
+                    I.z - 2.0f * dot * N.z };
+}
 
 static bool in_shadow(const wf_vec3* p, const wf_vec3* light_pos,
                       const wf_face* tris, size_t tri_count,
@@ -40,37 +49,84 @@ static bool in_shadow(const wf_vec3* p, const wf_vec3* light_pos,
   return false;
 }
 
+/*
 static void get_face_color(const wf_scene_t* scene, size_t face_idx, uint8_t* r,
                            uint8_t* g, uint8_t* b) {
+                           // format: off
   if (face_idx >= 2 && face_idx <= 3) {
-    *r = 100;
-    *g = 100;
-    *b = 100;
+    *r = 100; *g = 100; *b = 100;
   } else if (face_idx >= 4 && face_idx <= 5) {
-    *r = 0;
-    *g = 255;
-    *b = 100;
+    *r = 0; *g = 255; *b = 100;
   } else if (face_idx >= 6 && face_idx <= 7) {
-    *r = 100;
-    *g = 255;
-    *b = 100;
+    *r = 100; *g = 255; *b = 100;
   } else if (face_idx >= 8 && face_idx <= 9) {
-    *r = 255;
-    *g = 100;
-    *b = 100;
+    *r = 255; *g = 100; *b = 100;
   } else if (face_idx >= 10 && face_idx <= 21) {
-    *r = 255;
-    *g = 100;
-    *b = 0;
+    *r = 255; *g = 100; *b = 0;
   } else if (face_idx >= 22 && face_idx <= 33) {
-    *r = 255;
-    *g = 255;
-    *b = 200;
+    *r = 255; *g = 255; *b = 200;
   } else {
-    *r = 200;
-    *g = 200;
-    *b = 200;
+    *r = 200; *g = 200; *b = 200;
   }
+                           // format: on
+}
+*/
+
+// Recursive ray tracer
+static wf_vec3 trace_ray(const ray_t* ray, const wf_face* tris,
+                         size_t tri_count, const wf_scene_t* scene,
+                         rt_material_t** rt_materials, const light_t* lights,
+                         size_t num_lights, int depth, int max_depth) {
+  if (depth >= max_depth) {
+    return (wf_vec3){ 0, 0, 0 };
+  }
+
+  hit_record_t rec;
+  if (!hit_scene(ray, tris, tri_count, scene, &rec)) {
+    return (wf_vec3){ 0, 0, 0 }; // background black
+  }
+
+  rt_material_t* mat      = rt_materials[rec.material_idx];
+  wf_vec3        view_dir = v3_normalize(
+      (wf_vec3){ -ray->direction.x, -ray->direction.y, -ray->direction.z });
+
+  // Direct lighting from all lights
+  wf_vec3 color = { 0, 0, 0 };
+  for (size_t li = 0; li < num_lights; ++li) {
+    if (in_shadow(&rec.point, &lights[li].position, tris, tri_count, scene))
+      continue;
+
+    wf_vec3 wi   = v3_sub(lights[li].position, rec.point);
+    wi           = v3_normalize(wi);
+    float ndotwi = v3_dot(rec.normal, wi);
+    if (ndotwi <= 0)
+      continue;
+
+    wf_vec3 fr = mat->brdf->ops->eval(mat->brdf, &wi, &view_dir, &rec.normal);
+    color.x += fr.x * lights[li].color.x * ndotwi;
+    color.y += fr.y * lights[li].color.y * ndotwi;
+    color.z += fr.z * lights[li].color.z * ndotwi;
+  }
+
+  // Specular reflection (simple mirror-like)
+  wf_vec3 reflect_dir = v3_reflect(ray->direction, rec.normal);
+  // Offset origin to avoid self-intersection
+  wf_vec3 offset_origin = { rec.point.x + rec.normal.x * 1e-4f,
+                            rec.point.y + rec.normal.y * 1e-4f,
+                            rec.point.z + rec.normal.z * 1e-4f };
+  ray_t   reflect_ray   = { .origin = offset_origin, .direction = reflect_dir };
+
+  wf_vec3 reflected =
+      trace_ray(&reflect_ray, tris, tri_count, scene, rt_materials, lights,
+                num_lights, depth + 1, max_depth);
+
+  // Hardcoded reflectivity (could come from material)
+  const float reflectivity = 0.8f;
+  color.x += reflectivity * reflected.x;
+  color.y += reflectivity * reflected.y;
+  color.z += reflectivity * reflected.z;
+
+  return color;
 }
 
 // Test ray against all triangles
@@ -82,9 +138,15 @@ static bool hit_scene(const ray_t* ray, const wf_face* tris, size_t tri_count,
 
   for (size_t i = 0; i < tri_count; ++i) {
     const wf_face* face = &tris[i];
-    const wf_vec3* v0   = &scene->vertices[face->vertices[0].v_idx];
-    const wf_vec3* v1   = &scene->vertices[face->vertices[1].v_idx];
-    const wf_vec3* v2   = &scene->vertices[face->vertices[2].v_idx];
+    if (face->material_idx >= 0) {
+      const char* mat_name = scene->materials[face->material_idx].name;
+      if (mat_name && strcmp(mat_name, "light") == 0) {
+        continue;
+      }
+    }
+    const wf_vec3* v0 = &scene->vertices[face->vertices[0].v_idx];
+    const wf_vec3* v1 = &scene->vertices[face->vertices[1].v_idx];
+    const wf_vec3* v2 = &scene->vertices[face->vertices[2].v_idx];
 
     float t, u, v;
     if (!ray_intersects_triangle(ray, v0, v1, v2, &t, &u, &v))
@@ -126,25 +188,48 @@ static bool hit_scene(const ray_t* ray, const wf_face* tris, size_t tri_count,
   return hit;
 }
 
-static ray_t get_camera_ray(const camera_t* cam, int x, int y, int width,
-                            int height) {
-  float u = (width > 1) ? (float)x / (float)(width - 1) : 0.5f;
-  float v = (height > 1) ? 1.0f - (float)y / (float)(height - 1) : 0.5f;
-
+static ray_t get_camera_ray(const camera_t* cam, float u, float v) {
   wf_vec3 origin    = camera_get_position(cam);
   wf_vec3 direction = camera_get_ray_direction(cam, u, v);
   return (ray_t){ .origin = origin, .direction = direction };
 }
 
+void search_light(wf_scene_t* scene, wf_vec3* light_pos) {
+  bool found_light = false;
+
+  for (wf_object_t* obj = scene->objects; obj; obj = obj->next) {
+    if (obj->material_idx == -1)
+      continue;
+    if (strcmp(scene->materials[obj->material_idx].name, "light") == 0) {
+      // 取第一个面的前三个顶点求平均（简单近似）
+      if (obj->face_count > 0) {
+        wf_face* f   = &obj->faces[0];
+        wf_vec3  v0  = scene->vertices[f->vertices[0].v_idx];
+        wf_vec3  v1  = scene->vertices[f->vertices[1].v_idx];
+        wf_vec3  v2  = scene->vertices[f->vertices[2].v_idx];
+        light_pos->x = (v0.x + v1.x + v2.x) / 3.0f;
+        light_pos->y = (v0.y + v1.y + v2.y) / 3.0f;
+        light_pos->z = (v0.z + v1.z + v2.z) / 3.0f;
+        found_light  = true;
+        break;
+      }
+    }
+  }
+
+  if (!found_light) {
+    light_pos->x = 0.0f;
+    light_pos->y = 1.98f;
+    light_pos->z = -0.03f;
+  }
+}
+
 int render_scene(const rtCfg* cfg) {
   log_info("Rendering scene: %dx%d", cfg->width, cfg->height);
 
-  // Initialize scene
   wf_scene_t         scene   = { 0 };
   wf_parse_options_t options = { 0 };
   wf_parse_options_init(&options);
 
-  // Load OBJ (MTL is loaded automatically if referenced)
   wf_error_t err = wf_load_obj(cfg->obj_file, &scene, &options);
   if (err != WF_SUCCESS) {
     const char* msg = wf_get_error(&scene);
@@ -153,10 +238,6 @@ int render_scene(const rtCfg* cfg) {
     return 1;
   }
 
-  wf_print_options_t opt;
-  wf_print_scene(&scene, &opt);
-
-  // Convert to flat triangle array for efficient ray tracing
   wf_face* triangles      = NULL;
   size_t   triangle_count = 0;
   err = wf_scene_to_triangles(&scene, &triangles, &triangle_count);
@@ -166,7 +247,6 @@ int render_scene(const rtCfg* cfg) {
     return 1;
   }
 
-  // Create camera
   wf_vec3 position = { 0.0f, 1.0f, 2.8f };
   wf_vec3 target   = { 0.0f, 1.0f, -1.0f };
   wf_vec3 up       = { 0.0f, 1.0f, 0.0f };
@@ -185,7 +265,6 @@ int render_scene(const rtCfg* cfg) {
     return 1;
   }
 
-  // Render
   size_t   size  = (size_t)cfg->width * cfg->height * 4;
   uint8_t* image = calloc(size, 1);
   if (!image) {
@@ -194,75 +273,57 @@ int render_scene(const rtCfg* cfg) {
     wf_free_scene(&scene);
     return 1;
   }
+
   rt_material_t** rt_materials =
       calloc(scene.material_count, sizeof(rt_material_t*));
   for (size_t i = 0; i < scene.material_count; ++i) {
     rt_materials[i] = rt_material_from_wf(&scene.materials[i]);
   }
 
-  // 定义光源（可扩展为数组）
+  wf_vec3 light_pos;
+  search_light(&scene, &light_pos);
   light_t lights[] = {
-    { .position = { 5.0f, 5.0f, 5.0f },
-     .color    = { 1.0f, 1.0f, 1.0f },
-     .type     = 0 },
-    { .position = { -3.0f, 4.0f, -2.0f },
-     .color    = { 0.8f, 0.8f, 1.0f },
-     .type     = 0 }
+    { .position = light_pos, .color = { 5.0f, 5.0f, 5.0f }, .type = 0 },
   };
   size_t num_lights = sizeof(lights) / sizeof(lights[0]);
 
+  int            spp     = 64;
+  sampler_t*     sampler = sampler_create_jittered(spp);
+  accumulator_t* acc     = accumulator_create_average();
+
+  const int MAX_DEPTH = 3;
+
   for (int y = 0; y < cfg->height; ++y) {
     for (int x = 0; x < cfg->width; ++x) {
-      ray_t ray = get_camera_ray(cam, x, y, cfg->width, cfg->height);
+      acc->init(acc, spp);
+      for (int s = 0; s < spp; ++s) {
+        float u_sub, v_sub;
+        sampler->generate(sampler, s, &u_sub, &v_sub);
+        float u   = (x + u_sub) / (float)cfg->width;
+        float v   = 1.0f - (y + v_sub) / (float)cfg->height;
+        ray_t ray = get_camera_ray(cam, u, v);
 
-      wf_vec3      final_color = { 0, 0, 0 };
-      hit_record_t rec;
-      bool    hit = hit_scene(&ray, triangles, triangle_count, &scene, &rec);
-      uint8_t r, g, b;
-      if (hit) {
-        wf_vec3 view_dir = { -ray.direction.x, -ray.direction.y,
-                             -ray.direction.z };
-
-        rt_material_t* mat = rt_materials[rec.material_idx];
-        view_dir           = v3_normalize(view_dir);
-
-        for (size_t li = 0; li < num_lights; ++li) {
-          if (in_shadow(&rec.point, &lights[li].position, triangles,
-                        triangle_count, &scene)) {
-            continue;
-          }
-
-          wf_vec3 wi = { lights[li].position.x - rec.point.x,
-                         lights[li].position.y - rec.point.y,
-                         lights[li].position.z - rec.point.z };
-          wi         = v3_normalize(wi);
-
-          float ndotwi = v3_dot(rec.normal, wi);
-          if (ndotwi <= 0)
-            continue;
-
-          // 调用 BRDF eval
-          wf_vec3 fr =
-              mat->brdf->ops->eval(mat->brdf, &wi, &view_dir, &rec.normal);
-
-          final_color.x += fr.x * lights[li].color.x * ndotwi;
-          final_color.y += fr.y * lights[li].color.y * ndotwi;
-          final_color.z += fr.z * lights[li].color.z * ndotwi;
-        }
-        r = (uint8_t)(fminf(1.0f, fmaxf(0.0f, final_color.x)) * 255);
-        g = (uint8_t)(fminf(1.0f, fmaxf(0.0f, final_color.y)) * 255);
-        b = (uint8_t)(fminf(1.0f, fmaxf(0.0f, final_color.z)) * 255);
-      } else {
-        r = g = b = 0; // 背景黑色
+        wf_vec3 sample_color =
+            trace_ray(&ray, triangles, triangle_count, &scene, rt_materials,
+                      lights, num_lights, 0, MAX_DEPTH);
+        acc->add(acc, &sample_color, s);
       }
 
-      size_t idx     = (y * cfg->width + x) * 4;
+      wf_vec3 final_color = acc->get(acc);
+      uint8_t r      = (uint8_t)(fminf(1.0f, fmaxf(0.0f, final_color.x)) * 255);
+      uint8_t g      = (uint8_t)(fminf(1.0f, fmaxf(0.0f, final_color.y)) * 255);
+      uint8_t b      = (uint8_t)(fminf(1.0f, fmaxf(0.0f, final_color.z)) * 255);
+      size_t  idx    = (y * cfg->width + x) * 4;
       image[idx]     = r;
       image[idx + 1] = g;
       image[idx + 2] = b;
       image[idx + 3] = 255;
     }
   }
+
+  // Cleanup
+  // sampler_destroy(sampler);
+  // accumulator_destroy(acc);
 
   int result = save_png(cfg->output, cfg->width, cfg->height, image);
   for (size_t i = 0; i < scene.material_count; ++i) {

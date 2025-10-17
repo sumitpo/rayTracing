@@ -4,11 +4,6 @@
 
 #include "wavefront.h"
 
-// typedef struct {
-//   wf_face face;
-//   size_t  material_idx; // for scene->materials[material_idx]
-// } rt_triangle_t;
-
 typedef struct {
   bool    hit;
   float   t;

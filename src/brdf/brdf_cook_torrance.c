@@ -157,12 +157,15 @@ static wf_vec3 ct_sample(const brdf_t* self, const wf_vec3* wo,
 }
 
 static void* ct_create(const void* params) {
+  log_debug("params@0x%X", params);
   const struct {
     wf_vec3 albedo;
     float   roughness;
     float   metallic;
-  }*         p    = params;
+  }* p = params;
+  log_debug("params@0x%X", p);
   ct_data_t* data = malloc(sizeof(ct_data_t));
+  log_debug("roughness is %f", *p);
   data->albedo    = p->albedo;
   data->roughness = p->roughness;
   data->metallic  = p->metallic;
@@ -173,12 +176,17 @@ static void ct_destroy(void* data) {
   free(data);
 }
 
-static brdf_ops_t cook_torrance_ops = { .name    = "cook_torrance",
+static brdf_ops_t cook_torrance_ops = { .type    = BRDF_COOK_TORRANCE,
+                                        .name    = "cook_torrance",
                                         .eval    = ct_eval,
                                         .sample  = ct_sample,
                                         .create  = ct_create,
                                         .destroy = ct_destroy };
 
 __attribute__((constructor)) static void register_cook_torrance(void) {
+  brdf_register_model(&cook_torrance_ops);
+}
+
+void register_cook_torrance_brdf(void) {
   brdf_register_model(&cook_torrance_ops);
 }

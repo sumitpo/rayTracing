@@ -67,7 +67,8 @@ static void lambert_destroy(void* data) {
 }
 
 // === Ops Definition ===
-static brdf_ops_t lambert_ops = { .name    = "lambert",
+static brdf_ops_t lambert_ops = { .type    = BRDF_LAMBERT,
+                                  .name    = "lambert",
                                   .eval    = lambert_eval,
                                   .sample  = lambert_sample,
                                   .create  = lambert_create,
@@ -75,5 +76,9 @@ static brdf_ops_t lambert_ops = { .name    = "lambert",
 
 // === Auto-register (constructor) ===
 __attribute__((constructor)) static void register_lambert(void) {
+  brdf_register_model(&lambert_ops);
+}
+
+void register_lambert_brdf(void) {
   brdf_register_model(&lambert_ops);
 }
